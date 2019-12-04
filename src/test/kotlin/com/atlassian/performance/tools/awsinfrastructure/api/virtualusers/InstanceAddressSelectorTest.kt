@@ -44,8 +44,18 @@ internal class InstanceAddressSelectorTest {
         assertThat(reachableIpAddress, equalTo(loopback))
     }
 
-    private fun newInstance(publicIp: String, privateIp: String) =
+    @Test
+    fun selectsCorrectAddressWhenNoPublicIpPresent() {
+        isServerRunning.await()
+        val loopback = Inet4Address.getLoopbackAddress().hostAddress
+        val reachableIpAddress = InstanceAddressSelector.getReachableIpAddress(newInstance(null, loopback), serverSocket.localPort)
+        assertThat(reachableIpAddress, equalTo(loopback))
+    }
+
+
+    private fun newInstance(publicIp: String?, privateIp: String) =
         Instance()
+            .withInstanceId("i-238473248342")
             .withPublicIpAddress(publicIp)
             .withPrivateIpAddress(privateIp)
 }
