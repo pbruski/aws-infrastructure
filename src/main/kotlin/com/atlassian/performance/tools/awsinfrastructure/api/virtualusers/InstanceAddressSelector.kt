@@ -22,21 +22,21 @@ class InstanceAddressSelector {
         private val executor = Executors.newCachedThreadPool()
 
         internal fun getReachableIpAddress(instance: Instance, port: Int = 22): String {
-            return reachableAddresses.computeIfAbsent(instance.publicIpAddress) {
-                val addressesToCheck = arrayOf(instance.publicIpAddress, instance.privateIpAddress)
+            return reachableAddresses.computeIfAbsent(instance.instanceId) {
+                val addressesToCheck = listOfNotNull(instance.publicIpAddress, instance.privateIpAddress)
 
-                getReachableIpAddress(port, *(addressesToCheck))
+                getReachableIpAddress(port, addressesToCheck)
             }
         }
 
-        private fun getReachableIpAddress(port: Int, vararg addresses: String): String {
+        private fun getReachableIpAddress(port: Int, addresses: List<String>): String {
             val completionService: CompletionService<String> = ExecutorCompletionService<String>(executor)
 
             val futures = addresses.map { address ->
                 completionService.submit {
                     isAddressReachable(port, address)
                 }
-            }.toMutableList()
+            }
 
             var pending = addresses.size
             try {
@@ -49,7 +49,7 @@ class InstanceAddressSelector {
             } finally {
                 futures.forEach { it.cancel(true)}
             }
-            throw ConnectException("Neither of " + addresses.contentToString() + " responded on port $port")
+            throw ConnectException("Neither of $addresses responded on port $port")
         }
 
         private fun isAddressReachable(port: Int, testedAddress: String): String? {
