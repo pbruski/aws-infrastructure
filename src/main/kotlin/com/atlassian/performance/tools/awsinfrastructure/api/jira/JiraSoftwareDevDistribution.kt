@@ -7,12 +7,12 @@ import com.atlassian.performance.tools.ssh.api.SshConnection
 import java.time.Duration
 
 /**
- * Distributes internal versions, e.g. milestones.
+ * Distributes dev versions, e.g. Jira built from source code.
  * Requires S3 credentials, therefore it's unsuitable for non-Atlassian users.
  *
- * @since 2.15.0
+ * @since 2.20.0
  */
-class JiraSoftwareInternalDistribution(
+class JiraSoftwareDevDistribution(
     private val version: String,
     private val unpackTimeout: Duration
 ) : ProductDistribution {
@@ -30,10 +30,10 @@ class JiraSoftwareInternalDistribution(
     ): String {
         val distribution = S3TarGzDistribution(
             S3Artifact(
-                region = "us-east-1",
-                bucketName = "downloads-internal-us-east-1",
-                archivesLocation = "private/jira/$version",
-                archiveName = "atlassian-jira-software-$version-standalone.tar.gz"
+                region = "eu-central-1",
+                bucketName = "jira-server-jpt",
+                archivesLocation = "software/jira/downloads",
+                archiveName = "atlassian-jira-software-$version.tar.gz"
             ),
             unpackTimeout
         )
