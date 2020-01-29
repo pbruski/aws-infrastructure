@@ -112,6 +112,8 @@ class MulticastVirtualUsersFormula private constructor(
         private var nodes: Int,
         private var shadowJar: File
     ) {
+        private val logger: Logger = LogManager.getLogger(this::class.java)
+
         private var browser: Browser = Chrome()
         private var network: Network? = null
         private var splunkForwarder: SplunkForwarder = DisabledSplunkForwarder()
@@ -138,13 +140,16 @@ class MulticastVirtualUsersFormula private constructor(
         fun splunkForwarder(splunkForwarder: SplunkForwarder) = apply { this.splunkForwarder = splunkForwarder }
         fun instanceType(instanceType: InstanceType): MulticastVirtualUsersFormula.Builder = apply { this.instanceType = instanceType }
 
-        fun build(): VirtualUsersFormula<MulticastVirtualUsers<SshVirtualUsers>> = MulticastVirtualUsersFormula(
-            nodes = nodes,
-            shadowJar = shadowJar,
-            splunkForwarder = splunkForwarder,
-            browser = browser,
-            network = network,
-            instanceType = instanceType
-        )
+        fun build(): VirtualUsersFormula<MulticastVirtualUsers<SshVirtualUsers>> {
+            logger.info("build() $instanceType")
+            return MulticastVirtualUsersFormula(
+                nodes = nodes,
+                shadowJar = shadowJar,
+                splunkForwarder = splunkForwarder,
+                browser = browser,
+                network = network,
+                instanceType = instanceType
+            )
+        }
     }
 }
