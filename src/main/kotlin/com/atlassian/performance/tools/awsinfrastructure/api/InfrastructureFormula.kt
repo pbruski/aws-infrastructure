@@ -3,6 +3,7 @@ package com.atlassian.performance.tools.awsinfrastructure.api
 import com.atlassian.performance.tools.aws.api.*
 import com.atlassian.performance.tools.awsinfrastructure.api.jira.DataCenterFormula
 import com.atlassian.performance.tools.awsinfrastructure.api.jira.JiraFormula
+import com.atlassian.performance.tools.awsinfrastructure.api.jira.JiraSoftwareDevDistribution
 import com.atlassian.performance.tools.awsinfrastructure.api.jira.StandaloneFormula
 import com.atlassian.performance.tools.awsinfrastructure.api.network.Network
 import com.atlassian.performance.tools.awsinfrastructure.api.network.NetworkFormula
@@ -17,6 +18,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.nio.file.Path
+import java.time.Duration
 import java.util.concurrent.Executors
 
 /**
@@ -145,22 +147,33 @@ class InfrastructureFormula<out T : VirtualUsers> private constructor(
     } as VirtualUsersFormula<T>
 
     class Builder<out T : VirtualUsers>(
-        private val investment: Investment,
-        private val jiraFormula: JiraFormula,
-        private val virtualUsersFormula: VirtualUsersFormula<T>,
-        private val aws: Aws
+        private val aws: Aws,
+        private val virtualUsersFormula: VirtualUsersFormula<T>
     ) {
+        private var investment: Investment? = null
+        private var jiraFormula: JiraFormula? = null
         private var network: Network? = null
 
-        fun network(network: Network): Builder<T> = apply { this.network = network }
+        fun investment(investment: Investment) = apply { this.investment = investment }
+        fun jiraFormula(jiraFormula: JiraFormula) = apply { this.jiraFormula = jiraFormula }
+        fun network(network: Network) = apply { this.network = network }
 
         fun build(): InfrastructureFormula<T> = InfrastructureFormula(
-            investment =  investment,
-            jiraFormula =  jiraFormula,
+            investment =  investment?: Investment("Default investment", Duration.ofMinutes(120)),
+            jiraFormula =  jiraFormula?: defaultJiraFormula(),
             virtualUsersFormula =  virtualUsersFormula,
             aws = aws,
             preProvisionedNetwork = network
         )
+
+        private fun defaultJiraFormula(): JiraFormula {
+            val dataset = DatasetCatalogue().smallJiraSeven()
+            return StandaloneFormula.Builder(
+                productDistribution = JiraSoftwareDevDistribution("8.6.0"),
+                jiraHomeSource = dataset.jiraHomeSource,
+                database = dataset.database
+            ).build()
+        }
     }
 }
 
