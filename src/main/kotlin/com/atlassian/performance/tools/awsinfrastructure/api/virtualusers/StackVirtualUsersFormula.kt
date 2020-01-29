@@ -100,7 +100,7 @@ class StackVirtualUsersFormula private constructor(
                     .withParameterValue(roleProfile),
                 Parameter()
                     .withParameterKey("Ami")
-                    .withParameterValue(aws.defaultAmi),
+                    .withParameterValue(AmiNameResolver.vuAmi(aws)),
                 Parameter()
                     .withParameterKey("Vpc")
                     .withParameterValue(network.vpc.vpcId),

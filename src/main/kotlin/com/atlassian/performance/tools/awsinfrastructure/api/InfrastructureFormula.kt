@@ -14,6 +14,8 @@ import com.atlassian.performance.tools.awsinfrastructure.virtualusers.S3ResultsT
 import com.atlassian.performance.tools.concurrency.api.submitWithLogContext
 import com.atlassian.performance.tools.infrastructure.api.virtualusers.VirtualUsers
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import java.nio.file.Path
 import java.util.concurrent.Executors
 
@@ -27,13 +29,15 @@ import java.util.concurrent.Executors
  * - [Ec2VirtualUsersFormula]
  * - [MulticastVirtualUsersFormula]
  */
-class InfrastructureFormula<out T : VirtualUsers>(
+class InfrastructureFormula<out T : VirtualUsers> private constructor(
     private val investment: Investment,
     private val jiraFormula: JiraFormula,
     private val virtualUsersFormula: VirtualUsersFormula<T>,
     private val aws: Aws,
-    private var preProvisionedNetwork: Network?
+    private val preProvisionedNetwork: Network?
 ) {
+    private val logger: Logger = LogManager.getLogger(this::class.java)
+
     constructor(
         investment: Investment,
         jiraFormula: JiraFormula,
@@ -44,6 +48,7 @@ class InfrastructureFormula<out T : VirtualUsers>(
     fun provision(
         workingDirectory: Path
     ): ProvisionedInfrastructure<T> {
+        logger.info("Provisioning infrastructure...")
         val nonce = investment.reuseKey()
 
         val resultsStorage = aws.resultsStorage(nonce)
@@ -63,9 +68,11 @@ class InfrastructureFormula<out T : VirtualUsers>(
             ).provision()
         }
 
+        logger.info("Provisioning network...")
         val network = preProvisionedNetwork ?: executor.submitWithLogContext("network") {
             NetworkFormula(investment, aws).provision()
         }.get()
+        logger.info("Network ready.")
 
         val provisionJira = executor.submitWithLogContext("jira") {
             overrideJiraNetwork(network).provision(
@@ -91,11 +98,16 @@ class InfrastructureFormula<out T : VirtualUsers>(
             )
         }
 
+        logger.info("Waiting until all Jira nodes are provisioned...")
         val provisionedJira = provisionJira.get()
+        logger.info("All Jira nodes are available.")
+        logger.info("Waiting until all virtual user nodes are provisioned...")
         val provisionedVirtualUsers = provisionVirtualUsers.get()
         val sshKey = keyProvisioning.get()
 
         executor.shutdownNow()
+
+        logger.info("All infrastructure is now available.")
 
         return ProvisionedInfrastructure(
             infrastructure = Infrastructure(
@@ -131,6 +143,25 @@ class InfrastructureFormula<out T : VirtualUsers>(
         is MulticastVirtualUsersFormula -> MulticastVirtualUsersFormula.Builder(virtualUsersFormula).network(network).build()
         else -> virtualUsersFormula
     } as VirtualUsersFormula<T>
+
+    class Builder<out T : VirtualUsers>(
+        private val investment: Investment,
+        private val jiraFormula: JiraFormula,
+        private val virtualUsersFormula: VirtualUsersFormula<T>,
+        private val aws: Aws
+    ) {
+        private var network: Network? = null
+
+        fun network(network: Network): Builder<T> = apply { this.network = network }
+
+        fun build(): InfrastructureFormula<T> = InfrastructureFormula(
+            investment =  investment,
+            jiraFormula =  jiraFormula,
+            virtualUsersFormula =  virtualUsersFormula,
+            aws = aws,
+            preProvisionedNetwork = network
+        )
+    }
 }
 
 class ProvisionedInfrastructure<out T : VirtualUsers>(
